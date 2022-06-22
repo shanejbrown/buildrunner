@@ -1034,6 +1034,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                 container_meta_logger.write(
                     f"WARNING: Unable to save caches for the following caches {result_caches}\n"
                 )
+                raise TypeError("And issue occurred")
 
         except Exception as curr_exception:
             raise curr_exception
