@@ -1029,7 +1029,14 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     f'Container exited with code {exit_code}\n'
                 )
 
-            self.runner.save_caches(caches)
+            try:
+                self.runner.save_caches(caches)
+            except Exception as curr_exception:
+                container_meta_logger.write(
+                    f'Caught exception {curr_exception}\n'
+                )
+                raise curr_exception
+
 
         finally:
             if self.runner:
