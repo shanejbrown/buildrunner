@@ -1037,7 +1037,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                 container_meta_logger.write(
                     f'Caught exception ++ {curr_exception}\n'
                 )
-                # raise curr_exception
+                raise curr_exception
 
 
         finally:
