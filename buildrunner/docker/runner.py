@@ -335,9 +335,12 @@ class DockerRunner:
                           f"to local cache [{local_cache_archive_file}]")
 
                     with open(local_cache_archive_file, 'wb') as file:
-                        bits, _ = self.docker_client.get_archive(self.container['Id'], f"{docker_path}/.")
-                        for chunk in bits:
-                            file.write(chunk)
+                        try:
+                            bits, _ = self.docker_client.get_archive(self.container['Id'], f"{docker_path}/.")
+                            for chunk in bits:
+                                file.write(chunk)
+                        except docker.errors.APIError as error:
+                            print(f"Caught an error that has occurred - {error}")
                 else:
                     print(f"The following {docker_path} in docker has already been saved. "
                           f"It will not be save again to {local_cache_archive_file}")
