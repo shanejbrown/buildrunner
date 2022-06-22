@@ -354,10 +354,9 @@ class DockerRunner:
                                 file.write(chunk)
                             successful_caches.append({local_cache_archive_file: docker_path})
                         except docker.errors.APIError as error:
-                            print(f"Caught an error that has occurred - {error}")
+                            print(f"WARNING: An error that has occurred - {error}")
                             success = False
                             unsuccessful_caches.append({local_cache_archive_file: docker_path})
-                            raise error
                 else:
                     print(f"The following {docker_path} in docker has already been saved. "
                           f"It will not be save again to {local_cache_archive_file}")
