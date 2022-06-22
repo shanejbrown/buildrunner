@@ -999,7 +999,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                 **container_args
             )
 
-            self.runner.restore_caches(caches, self.step_runner.build_runner.get_cache_archive_ext())
+            # self.runner.restore_caches(caches, self.step_runner.build_runner.get_cache_archive_ext())
 
             self.step_runner.log.write(
                 f'Started build container {container_id:.10}\n'
@@ -1029,7 +1029,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     f'Container exited with code {exit_code}\n'
                 )
 
-            self.runner.save_caches(caches)
+            # self.runner.save_caches(caches)
 
         finally:
             if self.runner:
