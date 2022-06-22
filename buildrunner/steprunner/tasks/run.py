@@ -1031,9 +1031,11 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
 
             try:
                 self.runner.save_caches(caches)
+            except FileNotFoundError as curr_exception:
+                container_meta_logger.write(f"Caught FileNotFoundError -- {curr_exception}\n")
             except Exception as curr_exception:
                 container_meta_logger.write(
-                    f'Caught exception {curr_exception}\n'
+                    f'Caught exceptionn -- {curr_exception}\n'
                 )
                 raise curr_exception
 
