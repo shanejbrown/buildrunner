@@ -260,8 +260,7 @@ class DockerRunner:
         Restores caches from the host system to the destination location in the docker container.
         """
         if caches is None or not isinstance(caches, OrderedDict):
-            print("WARNING: caches is not an OrderedDict")
-            sys.exit()
+            raise TypeError(f"Caches should be of type OrderedDict instead caches are type {type(caches)}")
 
         restored_cache_src = set()
         for local_cache_archive_file, docker_path in caches.items():
