@@ -1029,7 +1029,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     f'Container exited with code {exit_code}\n'
                 )
 
-            # self.runner.save_caches(caches)
+            self.runner.save_caches(caches)
 
         finally:
             if self.runner:
