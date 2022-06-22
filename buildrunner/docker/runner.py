@@ -18,6 +18,7 @@ from types import GeneratorType
 import docker.errors
 import six
 from docker.utils import compare_version
+from typing import Tuple
 
 from buildrunner.docker import (
     new_client,
@@ -321,11 +322,23 @@ class DockerRunner:
             finally:
                 self.shell = orig_shell
 
-    def save_caches(self, caches: OrderedDict):
+    def save_caches(self, caches: OrderedDict) -> Tuple[list, bool]:
         """
         Saves caches from a source locations in the docker container to locations on the host system as archive file.
+
+        Args:
+            caches (OrderedDict): Dictionary of caches to save [local_cache_archive_file: docker_path]
+
+        Returns:
+            (tuple):    When successful it will return  (list of successful caches, True)
+                        When not successful it will return (list of unsuccessful caches, False)
         """
         saved_cache_src = set()
+
+        success = True
+        unsuccessful_caches = list()
+        successful_caches = list()
+
         if caches and isinstance(caches, OrderedDict):
             for local_cache_archive_file, docker_path in caches.items():
                 if docker_path not in saved_cache_src:
@@ -339,11 +352,19 @@ class DockerRunner:
                             bits, _ = self.docker_client.get_archive(self.container['Id'], f"{docker_path}/.")
                             for chunk in bits:
                                 file.write(chunk)
+                            successful_caches.append({local_cache_archive_file: docker_path})
                         except docker.errors.APIError as error:
                             print(f"Caught an error that has occurred - {error}")
+                            success = False
+                            unsuccessful_caches.append({local_cache_archive_file: docker_path})
                 else:
                     print(f"The following {docker_path} in docker has already been saved. "
                           f"It will not be save again to {local_cache_archive_file}")
+
+        if not success:
+            return unsuccessful_caches, False
+
+        return successful_caches, True
 
     # pylint: disable=too-many-branches,too-many-arguments
     def run(self, cmd, console=None, stream=True, log=None, workdir=None):

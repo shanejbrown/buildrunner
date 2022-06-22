@@ -1029,17 +1029,14 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     f'Container exited with code {exit_code}\n'
                 )
 
-            try:
-                self.runner.save_caches(caches)
-            except FileNotFoundError as curr_exception:
-                container_meta_logger.write(f"Caught FileNotFoundError -- {curr_exception}\n")
-            except Exception as curr_exception:
+            result_caches, result = self.runner.save_caches(caches)
+            if not result:
                 container_meta_logger.write(
-                    f'Caught exception ++ {curr_exception}\n'
+                    f"WARNING: Unable to save caches for the following caches {result_caches}\n"
                 )
-                raise curr_exception
 
-
+        except Exception as curr_exception:
+            raise curr_exception
         finally:
             if self.runner:
                 self.runner.stop()
