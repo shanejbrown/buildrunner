@@ -357,6 +357,7 @@ class DockerRunner:
                             print(f"Caught an error that has occurred - {error}")
                             success = False
                             unsuccessful_caches.append({local_cache_archive_file: docker_path})
+                            raise error
                 else:
                     print(f"The following {docker_path} in docker has already been saved. "
                           f"It will not be save again to {local_cache_archive_file}")

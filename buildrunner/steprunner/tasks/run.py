@@ -1029,15 +1029,12 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     f'Container exited with code {exit_code}\n'
                 )
 
-            result_caches, result = self.runner.save_caches(caches)
-            if not result:
+            result_caches, success = self.runner.save_caches(caches)
+            if not success:
                 container_meta_logger.write(
-                    f"WARNING: Unable to save caches for the following caches {result_caches}\n"
+                    f"WARNING: Unable to save the following caches {result_caches}\n"
                 )
-                raise TypeError("And issue occurred")
 
-        except Exception as curr_exception:
-            raise curr_exception
         finally:
             if self.runner:
                 self.runner.stop()
