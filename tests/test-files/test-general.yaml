@@ -25,7 +25,8 @@ steps:
       image: {{ DOCKER_REGISTRY}}/rockylinux:8.5
       cmds: [
         'mkdir -p /test',
-        'echo "test" > /test/test.txt',
+        'echo "my cache data" > /test/cache.txt',
+        'echo "test" > test.txt',
         'echo "success" > success.comment',
         'echo "{{ BUILDRUNNER_BUILD_ID }}" > version.txt',
         'mkdir bob; echo "{{ BUILDRUNNER_BUILD_ID }}" > bob/version.txt',
