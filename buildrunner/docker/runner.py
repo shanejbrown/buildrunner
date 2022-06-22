@@ -10,7 +10,6 @@ import base64
 import os.path
 import socket
 import ssl
-import sys
 from collections import OrderedDict
 from os import listdir
 from os.path import isfile, join, getmtime
