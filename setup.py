@@ -1,5 +1,5 @@
 """
-Copyright (C) 2020 Adobe
+Copyright (C) 2023 Adobe
 """
 
 from __future__ import print_function
@@ -11,7 +11,6 @@ import sys
 import types
 
 from setuptools import setup, find_packages
-
 
 BASE_VERSION = '3.0'
 
@@ -90,7 +89,7 @@ def get_version():
         version_mod = types.ModuleType(loader.name)
         loader.exec_module(version_mod)
         existing_version = version_mod.__version__  # pylint: disable=no-member
-        print(f'Using existing buildrunner version: {existing_version}')
+        # print(f'Using existing buildrunner version: {existing_version}')
         return existing_version
 
     # Generate the version from the base version and the git commit number, then store it in the file
