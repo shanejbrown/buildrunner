@@ -109,7 +109,7 @@ def get_version():
         output = stdout.strip()
         if cmd.returncode == 0:
             new_version = '{0}.{1}'.format(BASE_VERSION, output)
-            print(f'Setting version to {new_version}')
+            # print(f'Setting version to {new_version}')
 
             # write the version file
             if os.path.exists(BUILDRUNNER_DIR):
