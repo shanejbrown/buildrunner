@@ -58,19 +58,18 @@ jobs:
     #   with:
     #     files: test-reports/test-results.xml
     #     check_name: "Test Results ${{ matrix.python-version }}"
-    tag-commit:
-      if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
-      runs-on: ubuntu-latest
-      needs: test
-      steps:
-        - name: Get and set version in env
-          run: echo "CURRENT_VERSION=$( python setup.py --version )" >> $GITHUB_ENV
-        - name: Print current version
-          run: echo CURRENT_VERSION ${{ env.CURRENT_VERSION }}
-        - name: Tag commit
-          if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
-          run: git tag latest
-          run: git tag ${{ env.CURRENT_VERSION }}
+  tag-commit:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Get and set version in env
+        run: echo "CURRENT_VERSION=$( python setup.py --version )" >> $GITHUB_ENV
+      - name: Print current version
+        run: echo CURRENT_VERSION ${{ env.CURRENT_VERSION }}
+      - name: Tag commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
+        run: git tag latest && git tag ${{ env.CURRENT_VERSION }}
 
   # publish-pypi:
   #   if: github.repository == 'shanejbrown/buildrunner'
