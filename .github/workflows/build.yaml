@@ -6,7 +6,7 @@ jobs:
   test:
     # When running with act (https://github.com/nektos/act), these lines need to be appended with the ACT variable
     # to force each job to run
-    if: github.repository == 'adobe/buildrunner' #|| ${{ env.ACT }}
+    if: github.repository == 'shanejbrown/buildrunner' #|| ${{ env.ACT }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -58,37 +58,37 @@ jobs:
       with:
         files: test-reports/test-results.xml
         check_name: "Test Results ${{ matrix.python-version }}"
-  publish-pypi:
-    if: github.repository == 'adobe/buildrunner'
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        # Fetch all history instead of the latest commit
-        fetch-depth: 0
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-    - name: Remove version file
-      # This is just in case something else created it, destroy it to get a fresh version
-      run: rm -f buildrunner/version.py
-    - name: Install wheel
-      run: pip install wheel build
-    - name: Build
-      run: python -m build
-    - name: Check upload
-      run: pip install twine && twine check dist/*
-    - name: Publish to PyPi
-      uses: pypa/gh-action-pypi-publish@release/v1
-      # Only publish on pushes to main
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      with:
-        user: __token__
-        password: ${{ secrets.ADOBE_BOT_PYPI_TOKEN }}
+  # publish-pypi:
+  #   if: github.repository == 'shanejbrown/buildrunner'
+  #   runs-on: ubuntu-latest
+  #   needs: test
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #     with:
+  #       # Fetch all history instead of the latest commit
+  #       fetch-depth: 0
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v2
+  #     with:
+  #       python-version: 3.8
+  #   - name: Remove version file
+  #     # This is just in case something else created it, destroy it to get a fresh version
+  #     run: rm -f buildrunner/version.py
+  #   - name: Install wheel
+  #     run: pip install wheel build
+  #   - name: Build
+  #     run: python -m build
+  #   - name: Check upload
+  #     run: pip install twine && twine check dist/*
+  #   - name: Publish to PyPi
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     # Only publish on pushes to main
+  #     if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
+  #     with:
+  #       user: __token__
+  #       password: ${{ secrets.ADOBE_BOT_PYPI_TOKEN }}
   publish-docker:
-    if: github.repository == 'adobe/buildrunner'
+    if: github.repository == 'shanejbrown/buildrunner'
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -104,7 +104,7 @@ jobs:
       id: docker_tags
       uses: docker/metadata-action@v3
       with:
-        images: ghcr.io/adobe/buildrunner
+        images: ghcr.io/shanejbrown/buildrunner
         tags: |
           latest
           ${{ env.CURRENT_VERSION }}
@@ -119,7 +119,7 @@ jobs:
     - name: Login to GitHub Container Registry
       uses: docker/login-action@v1
       # Only login if this a push to main
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -129,7 +129,7 @@ jobs:
       with:
         context: .
         # Only push images if this is a push to main
-        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/version-test' }}
         platforms: linux/amd64,linux/arm64
         tags: ${{ steps.docker_tags.outputs.tags }}
         labels: ${{ steps.docker_tags.outputs.labels }}
