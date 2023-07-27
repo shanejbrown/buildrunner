@@ -59,7 +59,7 @@ jobs:
     #     files: test-reports/test-results.xml
     #     check_name: "Test Results ${{ matrix.python-version }}"
   tag-commit:
-    if: github.repository == 'shanejbrown/buildrunner1' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.repository == 'shanejbrown/buildrunner' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: test
     steps:
