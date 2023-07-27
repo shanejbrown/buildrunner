@@ -73,7 +73,7 @@ jobs:
         run: echo CURRENT_VERSION ${{ env.CURRENT_VERSION }}
       - name: Tag commit
         if: github.event_name == 'push' && github.ref == 'refs/heads/version-test'
-        run: git tag latest && git tag ${{ env.CURRENT_VERSION }}
+        run: git tag latest && git tag ${{ env.CURRENT_VERSION }} && git push --tags
 
   # publish-pypi:
   #   if: github.repository == 'shanejbrown/buildrunner'
