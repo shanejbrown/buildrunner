@@ -85,7 +85,7 @@ def test_flock_release(mock_logger):
             p = Process(target=get_and_hold_lock, args=(lock_file, 2))
             p.start()
             time.sleep(1)
-            fd = acquire_flock_open_write_binary(lock_file, mock_logger, timeout_seconds=2.0)
+            fd = acquire_flock_open_write_binary(lock_file, mock_logger, timeout_seconds=2)
             assert fd is not None
             p.join()
         finally:
