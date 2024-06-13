@@ -34,6 +34,7 @@ DEFAULT_SHELL = "/bin/sh"
 SOURCE_VOLUME_MOUNT = "/source"
 ARTIFACTS_VOLUME_MOUNT = "/artifacts"
 FILE_INFO_DELIMITER = "~!~"
+STEP_RESULTS_DIR = "stepresults"
 
 
 class RunBuildStepRunnerTask(BuildStepRunnerTask):
@@ -148,7 +149,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
             artifact_lister.start(
                 volumes_from=[self._get_source_container()],
                 volumes={
-                    self.step_runner.results_dir: "/stepresults",
+                    self.step_runner.results_dir: f"/{STEP_RESULTS_DIR}",
                 },
                 working_dir=SOURCE_VOLUME_MOUNT,
                 shell="/bin/sh",
@@ -163,7 +164,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     stat_output_file,
                 )
                 exit_code = artifact_lister.run(
-                    f'stat -c "%n{FILE_INFO_DELIMITER}%F" {pattern} >/stepresults/{stat_output_file}',
+                    f'stat -c "%n{FILE_INFO_DELIMITER}%F" {pattern} >/{STEP_RESULTS_DIR}/{stat_output_file}',
                     console=console,
                     stream=True,
                     log=self.step_runner.log,
@@ -204,10 +205,11 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                             self.step_runner.log.write(f"- artifact_dir = {artifact_dir}\n")
 
                             # Missing step name... :(
-                            dest_dir = "/stepresults"
+                            dest_dir = STEP_RESULTS_DIR
                             if artifact_dir:
                                 dest_dir = f"{dest_dir}/{artifact_dir}"
                             new_artifact_file = dest_dir + "/" + output_file_name
+
                             archive_command = (
                                 "cp",
                                 "-L",
@@ -235,7 +237,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                 # make sure the current user/group ids of our
                 # process are set as the owner of the files
                 exit_code = artifact_lister.run(
-                    f"chown -R {int(os.getuid())}:{int(os.getgid())} /stepresults",
+                    f"chown -R {int(os.getuid())}:{int(os.getgid())} /{STEP_RESULTS_DIR}",
                     console=console,
                     log=self.step_runner.log,
                 )
@@ -265,7 +267,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                 find_output_file,
             )
             find_exit_code = artifact_lister.run(
-                f"find {artifact_file} -type f >/stepresults/{find_output_file}",
+                f"find {artifact_file} -type f >/{STEP_RESULTS_DIR}/{find_output_file}",
                 stream=False,
                 log=self.step_runner.log,
             )
@@ -277,12 +279,13 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                         continue
 
                     output_file_name = _file
-                    new_artifact_file = "/stepresults/" + output_file_name
+                    # use os.path.join
+                    new_artifact_file = "/{RESULTS_DIR}/" + output_file_name
                     _dir_name = os.path.dirname(_file)
                     archive_command = (
                         "mkdir",
                         "-p",
-                        "/stepresults/" + _dir_name,
+                        "/{RESULTS_DIR}/" + _dir_name,
                     )
                     exit_code = artifact_lister.run(
                         archive_command,
@@ -330,7 +333,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                     "suffix", f'.{arch_props["type"]}.{arch_props["compression"]}'
                 )
                 output_file_name = arch_props["name"] + suffix
-                new_artifact_file = "/stepresults/" + output_file_name
+                new_artifact_file = "/{RESULTS_DIR}/" + output_file_name
                 archive_command = [
                     "tar",
                     self.TAR_COMPRESSION_ARG.get(
@@ -357,7 +360,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
 
             elif arch_props["type"] == "zip":
                 output_file_name = f'{arch_props["name"]}.{arch_props["type"]}'
-                new_artifact_file = "/stepresults/" + output_file_name
+                new_artifact_file = "/{RESULTS_DIR}/" + output_file_name
                 archive_command = [
                     "zip",
                     new_artifact_file,
@@ -403,7 +406,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
         self.step_runner.log.write(f"- found {file_type} {filename}\n")
         self.step_runner.log.write(f"  - archiving {filename} to {output_file_name}\n")
 
-        # TODO create dir
+        # Create dir
         if dest_dir:
             mkdir_command = (
                 "mkdir",
@@ -418,9 +421,8 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
             if exit_code != 0:
                 # pylint: disable=broad-exception-raised
                 raise Exception(
-                    f"Error gathering artifact {artifact_file}",
+                    f"Unable to create {dest_dir} for {artifact_file}",
                 )
-
 
         exit_code = artifact_lister.run(
             archive_command,
@@ -436,11 +438,13 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
         if not properties or (
             isinstance(properties, dict) and properties.get("push", True)
         ):
+            print(f" !! - Add artifact {os.path.join(self.step_runner.name,dest_dir,output_file_name,),}")
             # register the artifact with the run controller
+            # TODO Fix this hack with replace :(
             self.step_runner.build_runner.add_artifact(
                 os.path.join(
                     self.step_runner.name,
-                    dest_dir,
+                    dest_dir.replace(f"{STEP_RESULTS_DIR}/", ""),
                     output_file_name,
                 ),
                 properties,
