@@ -177,6 +177,8 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                         output = output_fd.read()
                     artifact_files = [af.strip() for af in output.split("\n")]
                     for art_info in artifact_files:
+                        self.step_runner.log.write(f"- art_info = {art_info}\n")
+                        # art_info = dir1/dir2/hello.txt~!~regular file
                         if not art_info or FILE_INFO_DELIMITER not in art_info:
                             continue
                         artifact_file, file_type = art_info.split(
@@ -186,6 +188,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                         # check if the file is directory, to copy recursive
                         is_dir = file_type.strip() == "directory"
 
+                        # TODO This might be the location to update
                         if is_dir:
                             # directory => recursive copy
                             self._archive_dir(
@@ -195,8 +198,16 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                             )
 
                         else:
+                            #  This line removes the directory path from the file name
                             output_file_name = os.path.basename(artifact_file)
-                            new_artifact_file = "/stepresults/" + output_file_name
+                            artifact_dir = os.path.dirname(artifact_file)
+                            self.step_runner.log.write(f"- artifact_dir = {artifact_dir}\n")
+
+                            # Missing step name... :(
+                            dest_dir = "/stepresults"
+                            if artifact_dir:
+                                dest_dir = f"{dest_dir}/{artifact_dir}"
+                            new_artifact_file = dest_dir + "/" + output_file_name
                             archive_command = (
                                 "cp",
                                 "-L",
@@ -212,6 +223,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                                 new_artifact_file,
                                 output_file_name,
                                 properties,
+                                dest_dir=dest_dir,
                             )
 
                 # remove the stat output file
@@ -379,14 +391,36 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
         output_file_name,
         properties,
         workdir=None,
+        dest_dir=None,
     ):  # pylint: disable=too-many-arguments
         """
         Archive the given file.
         """
+        # TODO
         # Unused arg
         _ = new_artifact_file
 
         self.step_runner.log.write(f"- found {file_type} {filename}\n")
+        self.step_runner.log.write(f"  - archiving {filename} to {output_file_name}\n")
+
+        # TODO create dir
+        if dest_dir:
+            mkdir_command = (
+                "mkdir",
+                "-p",
+                dest_dir,
+            )
+            exit_code = artifact_lister.run(
+            mkdir_command,
+            log=self.step_runner.log,
+            workdir=workdir,
+            )
+            if exit_code != 0:
+                # pylint: disable=broad-exception-raised
+                raise Exception(
+                    f"Error gathering artifact {artifact_file}",
+                )
+
 
         exit_code = artifact_lister.run(
             archive_command,
@@ -406,6 +440,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
             self.step_runner.build_runner.add_artifact(
                 os.path.join(
                     self.step_runner.name,
+                    dest_dir,
                     output_file_name,
                 ),
                 properties,
