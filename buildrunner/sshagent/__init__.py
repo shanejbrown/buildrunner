@@ -273,7 +273,7 @@ class DockerSSHAgentProxy:
                     self._multiplatform_image_builder.build_multiple_images(
                         platforms=platforms,
                         path=SSH_AGENT_PROXY_BUILD_CONTEXT,
-                        cache=False,
+                        cache=True,
                         pull=False,
                         use_threading=False,
                     )
