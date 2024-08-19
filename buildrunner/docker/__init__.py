@@ -9,6 +9,7 @@ with the terms of the Adobe license agreement accompanying it.
 import os
 import ssl
 import tempfile
+import traceback
 from typing import Tuple
 import urllib.parse
 import docker
@@ -143,4 +144,12 @@ def get_dockerfile(
                 curr_dockerfile = df_file.name
             finally:
                 df_file.close()
+
+    # Print debug
+    print(f"!! ----->>>>> {curr_dockerfile=}")
+    with open(curr_dockerfile, "r") as f:
+        print(f"!! ----->>>>> {f.read()}")
+    for line in traceback.format_stack():
+        print(line.strip())
+
     return curr_dockerfile, cleanup_dockerfile
