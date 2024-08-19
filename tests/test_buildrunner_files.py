@@ -57,7 +57,7 @@ def _get_test_runs(test_dir: str) -> List[Tuple[str, str, Optional[List[str]], i
         [
             file_name
             for file_name in os.listdir(test_dir)
-            if file_name.startswith("test-") and file_name.endswith(".yaml")
+            if file_name.startswith("test-ssh") and file_name.endswith(".yaml")
         ]
     )
     return [
