@@ -132,23 +132,27 @@ def get_dockerfile(
             raise BuildRunnerConfigurationError(
                 f"Path {path} does not exist, cannot find Dockerfile"
             )
-    elif dockerfile and os.path.exists(dockerfile):
-        curr_dockerfile = dockerfile
-    else:
-        # pylint: disable=consider-using-with
-        df_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir)
-        try:
-            df_file.write(dockerfile.encode("utf-8"))
-            cleanup_dockerfile = True
-            curr_dockerfile = df_file.name
-        finally:
-            df_file.close()
+    if dockerfile:
+        if os.path.exists(dockerfile):
+            curr_dockerfile = dockerfile
+        else:
+            # pylint: disable=consider-using-with
+            df_file = tempfile.NamedTemporaryFile(delete=False, dir=temp_dir)
+            try:
+                df_file.write(dockerfile.encode("utf-8"))
+                cleanup_dockerfile = True
+                curr_dockerfile = df_file.name
+            finally:
+                df_file.close()
 
     # Print debug
-    print(f"!! ----->>>>> {curr_dockerfile=}")
-    with open(curr_dockerfile, "r") as f:
-        print(f"!! ----->>>>> {f.read()}")
-    for line in traceback.format_stack():
-        print(line.strip())
+    if curr_dockerfile:
+        print(f"!! ----->>>>> {curr_dockerfile=}")
+        with open(curr_dockerfile, "r") as f:
+            print(f"!! ----->>>>> {f.read()}")
+        for line in traceback.format_stack():
+            print(line.strip())
+    else:
+        print(f"!! ----->>>>> {curr_dockerfile=}")
 
     return curr_dockerfile, cleanup_dockerfile
