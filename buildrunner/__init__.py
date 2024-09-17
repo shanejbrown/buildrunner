@@ -20,6 +20,7 @@ import tarfile
 import tempfile
 import types
 from typing import List, Optional
+from docker.errors import ImageNotFound
 
 import requests
 
@@ -503,11 +504,14 @@ class BuildRunner:
             # cleanup the source image
             if self._source_image:
                 self.log.write(f"Destroying source image {self._source_image}\n")
-                _docker_client.remove_image(
-                    self._source_image,
-                    noprune=False,
-                    force=True,
-                )
+                try:
+                    _docker_client.remove_image(
+                        self._source_image,
+                        noprune=False,
+                        force=True,
+                    )
+                except ImageNotFound as inf:
+                    self.log.warning(f"Source image not found: {str(inf)}. Skipping.")
 
             if self.cleanup_images:
                 self.log.write("Removing local copy of generated images\n")
