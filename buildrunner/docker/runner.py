@@ -736,8 +736,13 @@ class DockerRunner:
         stream.write(
             f"Committing build container {self.container['Id']:.10} as an image...\n"
         )
-        self.committed_image = self.docker_client.commit(
-            self.container["Id"],
-        )["Id"]
+        if self.use_docker_py:
+            self.committed_image = self.docker_client.commit(
+                self.container["Id"],
+            )["Id"]
+        else:
+            self.committed_image = python_on_whales.docker.commit(
+                self.container["Id"]
+            ).id
         stream.write(f"Resulting build container image: {self.committed_image:.10}\n")
         return self.committed_image
