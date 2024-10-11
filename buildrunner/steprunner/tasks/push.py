@@ -11,6 +11,7 @@ import tempfile
 import time
 from typing import Dict, List, Optional
 
+import python_on_whales
 import yaml
 
 import buildrunner.docker
@@ -403,12 +404,18 @@ class PushBuildStepRunnerTask(BuildStepRunnerTask):
 
                 # Tag the image
                 for tag in repo.tags:
-                    self._docker_client.tag(
-                        image_to_use,
-                        repo.repository,
-                        tag=tag,
-                        force=True,
-                    )
+                    if BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+                        self._docker_client.tag(
+                            image_to_use,
+                            repo.repository,
+                            tag=tag,
+                            force=True,
+                        )
+                    else:
+                        python_on_whales.docker.tag(
+                            image_to_use,
+                            f"{repo.repository}:{tag}",
+                        )
                     self.step_runner.build_runner.committed_images.add(
                         f"{repo.repository}:{tag}"
                     )
