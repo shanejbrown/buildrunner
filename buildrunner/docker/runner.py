@@ -121,21 +121,29 @@ class DockerRunner:
             if found_image:
                 # No need to continue once we've found the image
                 break
+        self.use_docker_py = (
+            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
+        )
 
         if pull_image or not found_image:
             if log:
                 log.write(f"Pulling image {self.image_name}\n")
             with DockerPullProgress() as docker_progress:
-                for data in self.docker_client.pull(
-                    self.image_name, stream=True, decode=True, platform=self.platform
-                ):
-                    docker_progress.status_report(data)
+                if self.use_docker_py:
+                    for data in self.docker_client.pull(
+                        self.image_name,
+                        stream=True,
+                        decode=True,
+                        platform=self.platform,
+                    ):
+                        docker_progress.status_report(data)
+                else:
+                    # TODO redirect output to docker_progress
+                    python_on_whales.docker.image.pull(
+                        self.image_name, quiet=False, platform=self.platform
+                    )
             if log:
                 log.write("\nImage pulled successfully\n")
-
-        self.use_docker_py = (
-            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
-        )
 
     def start(
         self,

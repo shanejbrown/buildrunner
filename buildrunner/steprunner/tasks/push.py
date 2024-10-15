@@ -225,11 +225,14 @@ class PushBuildStepRunnerTask(BuildStepRunnerTask):
         log_image_ref: str,
         pull: bool,
     ) -> dict:
+        buildrunner_config = BuildRunnerConfig.get_instance()
         # Pull image for scanning (if not already pulled) so that it can be scanned locally
         if pull:
-            self._docker_client.pull(repository, tag)
+            if buildrunner_config.run_config.use_legacy_builder:
+                self._docker_client.pull(repository, tag)
+            else:
+                python_on_whales.docker.pull(f"{repository}:{tag}")
 
-        buildrunner_config = BuildRunnerConfig.get_instance()
         with tempfile.TemporaryDirectory(
             suffix="-trivy-run",
             dir=buildrunner_config.global_config.temp_dir,
