@@ -75,10 +75,16 @@ def _get_test_runs(
             ):
                 file_names.append(file_name)
 
-    return [
-        (test_dir, file_name, _get_test_args(file_name), _get_exit_code(file_name))
-        for file_name in file_names
-    ]
+        test_runs = [
+            (test_dir, file_name, _get_test_args(file_name), _get_exit_code(file_name))
+            for file_name in file_names
+        ]
+
+        # Skipping SSH tests in GitHub Actions
+        if os.getenv("GITHUB_ACTIONS", "False"):
+            test_runs = [test_run for test_run in test_runs if "ssh" not in test_run[1]]
+
+    return test_runs
 
 
 def _test_buildrunner_file(test_dir, file_name, args, exit_code):
