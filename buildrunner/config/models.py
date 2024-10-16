@@ -25,7 +25,7 @@ from .validation import (
 DEFAULT_CACHES_ROOT = "~/.buildrunner/caches"
 # Marker for using the local registry instead of an upstream registry
 MP_LOCAL_REGISTRY = "local"
-DEFAULT_TO_LEGACY_BUILDER = True
+DEFAULT_TO_LEGACY_BUILDER = False
 
 
 class GithubModel(BaseModel, extra="forbid"):

@@ -121,21 +121,29 @@ class DockerRunner:
             if found_image:
                 # No need to continue once we've found the image
                 break
+        self.use_docker_py = (
+            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
+        )
 
         if pull_image or not found_image:
             if log:
                 log.write(f"Pulling image {self.image_name}\n")
             with DockerPullProgress() as docker_progress:
-                for data in self.docker_client.pull(
-                    self.image_name, stream=True, decode=True, platform=self.platform
-                ):
-                    docker_progress.status_report(data)
+                if self.use_docker_py:
+                    for data in self.docker_client.pull(
+                        self.image_name,
+                        stream=True,
+                        decode=True,
+                        platform=self.platform,
+                    ):
+                        docker_progress.status_report(data)
+                else:
+                    # TODO redirect output to docker_progress
+                    python_on_whales.docker.image.pull(
+                        self.image_name, quiet=False, platform=self.platform
+                    )
             if log:
                 log.write("\nImage pulled successfully\n")
-
-        self.use_docker_py = (
-            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
-        )
 
     def start(
         self,
@@ -736,8 +744,13 @@ class DockerRunner:
         stream.write(
             f"Committing build container {self.container['Id']:.10} as an image...\n"
         )
-        self.committed_image = self.docker_client.commit(
-            self.container["Id"],
-        )["Id"]
+        if self.use_docker_py:
+            self.committed_image = self.docker_client.commit(
+                self.container["Id"],
+            )["Id"]
+        else:
+            self.committed_image = python_on_whales.docker.commit(
+                self.container["Id"]
+            ).id
         stream.write(f"Resulting build container image: {self.committed_image:.10}\n")
         return self.committed_image
