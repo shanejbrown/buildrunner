@@ -448,40 +448,42 @@ class BuildRunner:
                         push_kwargs = {
                             "stream": True,
                         }
-                        if (
-                            "insecure_registry"
-                            in inspect.getfullargspec(_docker_client.push).args
-                        ):
-                            push_kwargs["insecure_registry"] = _insecure_registry
+                        if self.buildrunner_config.run_config.use_legacy_builder:
+                            if (
+                                "insecure_registry"
+                                in inspect.getfullargspec(_docker_client.push).args
+                            ):
+                                push_kwargs["insecure_registry"] = _insecure_registry
 
-                        stream = _docker_client.push(_repo_tag, **push_kwargs)
-                        previous_status = None
-                        for msg_str in stream:
-                            for msg in msg_str.decode("utf-8").split("\n"):
-                                if not msg:
-                                    continue
-                                msg = json.loads(msg)
-                                if "status" in msg:
-                                    if msg["status"] == previous_status:
+                            stream = _docker_client.push(_repo_tag, **push_kwargs)
+                            previous_status = None
+                            for msg_str in stream:
+                                for msg in msg_str.decode("utf-8").split("\n"):
+                                    if not msg:
                                         continue
-                                    self.log.write(msg["status"] + "\n")
-                                    previous_status = msg["status"]
-                                elif "errorDetail" in msg:
-                                    error_detail = (
-                                        f"Error pushing image: {msg['errorDetail']}\n"
-                                    )
-                                    self.log.write("\n" + error_detail)
-                                    self.log.write(
-                                        (
-                                            "This could be because you are not "
-                                            "authenticated with the given Docker "
-                                            "registry (try 'docker login "
-                                            "<registry>')\n\n"
+                                    msg = json.loads(msg)
+                                    if "status" in msg:
+                                        if msg["status"] == previous_status:
+                                            continue
+                                        self.log.write(msg["status"] + "\n")
+                                        previous_status = msg["status"]
+                                    elif "errorDetail" in msg:
+                                        error_detail = f"Error pushing image: {msg['errorDetail']}\n"
+                                        self.log.write("\n" + error_detail)
+                                        self.log.write(
+                                            (
+                                                "This could be because you are not "
+                                                "authenticated with the given Docker "
+                                                "registry (try 'docker login "
+                                                "<registry>')\n\n"
+                                            )
                                         )
-                                    )
-                                    raise BuildRunnerProcessingError(error_detail)
-                                else:
-                                    self.log.write(str(msg) + "\n")
+                                        raise BuildRunnerProcessingError(error_detail)
+                                    else:
+                                        self.log.write(str(msg) + "\n")
+                        else:
+                            # TODO redirect output to docker_progress
+                            python_on_whales.docker.image.push(_repo_tag)
 
                     # Push to pypi repositories
                     # Placing the import here avoids the dependency when pypi is not needed
