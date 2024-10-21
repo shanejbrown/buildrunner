@@ -1159,11 +1159,14 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
         if run_service.systemd:
             rval = run_service.systemd
         else:
-            labels = (
-                self._docker_client.inspect_image(image)
-                .get("Config", {})
-                .get("Labels", {})
-            )
+            inspected_image = None
+            labels = None
+            if BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+                inspected_image = self._docker_client.inspect_image(image)
+                labels = inspected_image.get("Config", {}).get("Labels", {})
+            else:
+                inspected_image = python_on_whales.docker.image.inspect(image)
+                labels = inspected_image.config.labels
             if labels and "BUILDRUNNER_SYSTEMD" in labels:
                 rval = labels.get("BUILDRUNNER_SYSTEMD", False)
 
