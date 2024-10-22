@@ -632,6 +632,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
                         f'Service command "{service.cmd}" exited with code {exit_code}\n'
                     )
             else:
+                # TODO
                 service_runner.attach_until_finished(service_logger)
             service_logger.cleanup()
 
@@ -655,9 +656,16 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
         """
         Wait for listening port on named container
         """
-        ipaddr = self._docker_client.inspect_container(name)["NetworkSettings"][
-            "IPAddress"
-        ]
+        ipaddr = None
+        if BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+            ipaddr = self._docker_client.inspect_container(name)["NetworkSettings"][
+                "IPAddress"
+            ]
+        else:
+            ipaddr = python_on_whales.docker.container.inspect(
+                name
+            ).network_settings.ip_address
+
         socket_open = False
 
         if isinstance(wait_for_data, dict):
@@ -682,13 +690,22 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
             )
 
             # check that the container is still available
-            container = self._docker_client.inspect_container(name)
-            container_status = container.get("State", {}).get("Status")
-            if container_status not in ["created", "running"]:
-                raise BuildRunnerProcessingError(
-                    f"Unable to wait for a service port {port} to be ready, the container"
-                    f" {name} status is {container_status}"
-                )
+            if BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+                container = self._docker_client.inspect_container(name)
+                container_status = container.get("State", {}).get("Status")
+                if container_status not in ["created", "running"]:
+                    raise BuildRunnerProcessingError(
+                        f"Unable to wait for a service port {port} to be ready, the container"
+                        f" {name} status is {container_status}"
+                    )
+            else:
+                _container = python_on_whales.docker.container.inspect(name)
+                container_status = _container.state.status
+                if container_status != "running" or container_status != "created":
+                    raise BuildRunnerProcessingError(
+                        f"Unable to wait for a service port {port} to be ready, the container"
+                        f" {name} status is {container_status}"
+                    )
 
             # Use a small nc image to test if the port is open from within the docker network
             # Linux can talk to containers directly, but mac and other OSes cannot

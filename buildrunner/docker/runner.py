@@ -662,9 +662,12 @@ class DockerRunner:
         """
         status = None
         try:
-            status = self.docker_client.inspect_container(
-                self.container["Id"],
-            )
+            if self.use_docker_py:
+                status = self.docker_client.inspect_container(
+                    self.container["Id"],
+                )
+            else:
+                status = python_on_whales.docker.container.inspect(self.container["Id"])
         except docker.errors.APIError:
             pass
         return status
@@ -676,10 +679,17 @@ class DockerRunner:
         ipaddr = None
         try:
             if self.is_running():
-                inspection = self.docker_client.inspect_container(
-                    self.container["Id"],
-                )
-                ipaddr = inspection.get("NetworkSettings", {}).get("IPAddress", None)
+                if self.use_docker_py:
+                    inspection = self.docker_client.inspect_container(
+                        self.container["Id"],
+                    )
+                    ipaddr = inspection.get("NetworkSettings", {}).get(
+                        "IPAddress", None
+                    )
+                else:
+                    ipaddr = python_on_whales.docker.container.inspect(
+                        self.container["Id"]
+                    ).network_settings.ip_address
         except docker.errors.APIError:
             pass
         return ipaddr
@@ -692,9 +702,12 @@ class DockerRunner:
         status = self._get_status()
         if not status:
             return False
-        if "State" not in status or "Running" not in status["State"]:
+        if isinstance(status, python_on_whales.Container):
+            return status.state and status.state.status == "running"
+        elif "State" not in status or "Running" not in status["State"]:
             return False
-        return status["State"]["Running"]
+        else:
+            return status["State"]["Running"]
 
     @property
     def exit_code(self):
