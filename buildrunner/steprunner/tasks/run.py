@@ -701,7 +701,7 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
             else:
                 _container = python_on_whales.docker.container.inspect(name)
                 container_status = _container.state.status
-                if container_status != "running" or container_status != "created":
+                if container_status != "running" and container_status != "created":
                     raise BuildRunnerProcessingError(
                         f"Unable to wait for a service port {port} to be ready, the container"
                         f" {name} status is {container_status}"
