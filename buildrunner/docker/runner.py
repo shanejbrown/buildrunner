@@ -291,6 +291,10 @@ class DockerRunner:
                 "cap_add": cap_add,
                 "privileged": privileged,
             }
+
+            # Remove None values
+            kwargs = {key: value for key, value in kwargs.items() if value is not None}
+
             # TODO update kwargs
             self.container = python_on_whales.docker.container.create(
                 self.image_name, **kwargs
