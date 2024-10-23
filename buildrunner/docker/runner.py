@@ -718,7 +718,9 @@ class DockerRunner:
         status = self._get_status()
         if not status:
             return None
-        if "State" not in status or "ExitCode" not in status["State"]:
+        if isinstance(status, python_on_whales.Container):
+            return status.state.exit_code
+        elif "State" not in status or "ExitCode" not in status["State"]:
             return None
         return status["State"]["ExitCode"]
 
