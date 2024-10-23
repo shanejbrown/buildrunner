@@ -249,11 +249,57 @@ class DockerRunner:
             kwargs["dns"] = dns
 
         # start the container
-        self.container = self.docker_client.create_container(self.image_name, **kwargs)
+        if self.use_docker_py:
+            self.container = self.docker_client.create_container(
+                self.image_name, **kwargs
+            )
+        else:
+            kwargs = {
+                "name": name,
+                "command": command,
+                "volumes": _volumes,
+                # "ports": _port_list, #TODO fixme (it could be duplicated)
+                # "stdin_open": True, #TODO fixme
+                "tty": True,
+                # "environment": environment, #fixme
+                "envs": environment,
+                "user": user,
+                # "working_dir": working_dir, #fixme
+                "workdir": working_dir,
+                "hostname": hostname,
+                # "host_config": self.docker_client.create_host_config( #fixme
+                #     binds=_binds,
+                #     links=links,
+                #     port_bindings=ports,
+                #     volumes_from=volumes_from,
+                #     dns=dns,
+                #     dns_search=dns_search,
+                #     extra_hosts=extra_hosts,
+                #     security_opt=security_opt,
+                #     cap_add=cap_add,
+                #     privileged=privileged,
+                # ),
+                # #######################################
+                # binds
+                "link": links,
+                "expose": ports,
+                "volumes_from": volumes_from,
+                "dns": dns,
+                "dns_search": dns_search,
+                # extra_hosts
+                "security_options": security_opt,
+                "cap_add": cap_add,
+                "privileged": privileged,
+            }
+            # TODO update kwargs
+            self.container = python_on_whales.docker.container.create(
+                self.image_name, **kwargs
+            )
+
         if self.use_docker_py:
             self.docker_client.start(self.container["Id"])
         else:
-            python_on_whales.docker.start(self.container["Id"])
+            python_on_whales.docker.start(self.container.id)
 
         # run any supplied provisioners
         if provisioners:
