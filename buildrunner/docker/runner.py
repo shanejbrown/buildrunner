@@ -254,9 +254,14 @@ class DockerRunner:
                 self.image_name, **kwargs
             )
         else:
+            assert (
+                _volumes != "/:a:r:t:i:f:a:c:t:s"
+            ), f"volumes has lots of colons {_volumes} type {type(_volumes)}"
             kwargs = {
                 "name": name,
                 "command": command,
+                # FIXME --volume /:a:r:t:i:f:a:c:t:s
+                # str
                 "volumes": _volumes,
                 # "ports": _port_list, #TODO fixme (it could be duplicated)
                 # "stdin_open": True, #TODO fixme
@@ -300,9 +305,12 @@ class DockerRunner:
                 self.image_name, **kwargs
             )
 
+        container_id = None
         if self.use_docker_py:
+            container_id = self.container["Id"]
             self.docker_client.start(self.container["Id"])
         else:
+            container_id = self.container.id
             python_on_whales.docker.start(self.container.id)
 
         # run any supplied provisioners
@@ -314,7 +322,7 @@ class DockerRunner:
                     self.cleanup()
                     raise ex
 
-        return self.container["Id"]
+        return container_id
 
     def stop(self):
         """
