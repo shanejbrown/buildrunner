@@ -11,6 +11,7 @@ import tempfile
 import time
 from typing import Dict, List, Optional
 
+import python_on_whales
 import yaml
 
 import buildrunner.docker
@@ -224,11 +225,14 @@ class PushBuildStepRunnerTask(BuildStepRunnerTask):
         log_image_ref: str,
         pull: bool,
     ) -> dict:
+        buildrunner_config = BuildRunnerConfig.get_instance()
         # Pull image for scanning (if not already pulled) so that it can be scanned locally
         if pull:
-            self._docker_client.pull(repository, tag)
+            if buildrunner_config.run_config.use_legacy_builder:
+                self._docker_client.pull(repository, tag)
+            else:
+                python_on_whales.docker.pull(f"{repository}:{tag}")
 
-        buildrunner_config = BuildRunnerConfig.get_instance()
         with tempfile.TemporaryDirectory(
             suffix="-trivy-run",
             dir=buildrunner_config.global_config.temp_dir,
@@ -403,12 +407,18 @@ class PushBuildStepRunnerTask(BuildStepRunnerTask):
 
                 # Tag the image
                 for tag in repo.tags:
-                    self._docker_client.tag(
-                        image_to_use,
-                        repo.repository,
-                        tag=tag,
-                        force=True,
-                    )
+                    if BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+                        self._docker_client.tag(
+                            image_to_use,
+                            repo.repository,
+                            tag=tag,
+                            force=True,
+                        )
+                    else:
+                        python_on_whales.docker.tag(
+                            image_to_use,
+                            f"{repo.repository}:{tag}",
+                        )
                     self.step_runner.build_runner.committed_images.add(
                         f"{repo.repository}:{tag}"
                     )

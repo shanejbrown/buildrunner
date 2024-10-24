@@ -146,12 +146,19 @@ class DockerSSHAgentProxy:
         # See if buildrunner is executing from a container.  If so, hit the
         # newly created container directly on port 22
         if os.environ.get("BUILDRUNNER_CONTAINER"):
-            _ssh_container = self.docker_client.inspect_container(
-                self._ssh_agent_container
-            )
-            _ssh_host = _ssh_container.get("NetworkSettings", {}).get(
-                "IPAddress", _ssh_host
-            )
+            if buildrunner.config.BuildRunnerConfig.get_instance().run_config.use_legacy_builder:
+                _ssh_container = self.docker_client.inspect_container(
+                    self._ssh_agent_container
+                )
+                _ssh_host = _ssh_container.get("NetworkSettings", {}).get(
+                    "IPAddress", _ssh_host
+                )
+            else:
+                _ssh_container = python_on_whales.docker.container.inspect(
+                    self._ssh_agent_container
+                )
+                if _ssh_container:
+                    _ssh_host = _ssh_container.network_settings.ip_address
             _ssh_port = 22
         else:
             # get the Docker server ip address and ssh port exposed by this

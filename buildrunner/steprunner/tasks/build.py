@@ -10,6 +10,8 @@ import glob
 import os
 import re
 
+import python_on_whales
+
 
 from buildrunner import loggers
 import buildrunner.docker
@@ -62,9 +64,14 @@ class BuildBuildStepRunnerTask(BuildStepRunnerTask):  # pylint: disable=too-many
             for cache_from_image in self.cache_from:
                 if isinstance(cache_from_image, str):
                     try:
-                        self._docker_client.pull(
-                            cache_from_image, platform=self.platform
-                        )
+                        if buildrunner_config.run_config.use_legacy_builder:
+                            self._docker_client.pull(
+                                cache_from_image, platform=self.platform
+                            )
+                        else:
+                            python_on_whales.docker.pull(
+                                cache_from_image, platform=self.platform
+                            )
                         # If the pull is successful, add the image to be cleaned up at the end of the script
                         self.step_runner.build_runner.generated_images.append(
                             cache_from_image

@@ -121,21 +121,29 @@ class DockerRunner:
             if found_image:
                 # No need to continue once we've found the image
                 break
+        self.use_docker_py = (
+            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
+        )
 
         if pull_image or not found_image:
             if log:
                 log.write(f"Pulling image {self.image_name}\n")
             with DockerPullProgress() as docker_progress:
-                for data in self.docker_client.pull(
-                    self.image_name, stream=True, decode=True, platform=self.platform
-                ):
-                    docker_progress.status_report(data)
+                if self.use_docker_py:
+                    for data in self.docker_client.pull(
+                        self.image_name,
+                        stream=True,
+                        decode=True,
+                        platform=self.platform,
+                    ):
+                        docker_progress.status_report(data)
+                else:
+                    # TODO redirect output to docker_progress
+                    python_on_whales.docker.image.pull(
+                        self.image_name, quiet=False, platform=self.platform
+                    )
             if log:
                 log.write("\nImage pulled successfully\n")
-
-        self.use_docker_py = (
-            BuildRunnerConfig.get_instance().run_config.use_legacy_builder
-        )
 
     def start(
         self,
@@ -241,11 +249,69 @@ class DockerRunner:
             kwargs["dns"] = dns
 
         # start the container
-        self.container = self.docker_client.create_container(self.image_name, **kwargs)
         if self.use_docker_py:
+            self.container = self.docker_client.create_container(
+                self.image_name, **kwargs
+            )
+        else:
+            assert (
+                _volumes != "/:a:r:t:i:f:a:c:t:s"
+            ), f"volumes has lots of colons {_volumes} type {type(_volumes)}"
+            kwargs = {
+                "name": name,
+                "command": command,
+                # FIXME --volume /:a:r:t:i:f:a:c:t:s
+                # str
+                "volumes": _volumes,
+                # "ports": _port_list, #TODO fixme (it could be duplicated)
+                # "stdin_open": True, #TODO fixme
+                "tty": True,
+                # "environment": environment, #fixme
+                "envs": environment,
+                "user": user,
+                # "working_dir": working_dir, #fixme
+                "workdir": working_dir,
+                "hostname": hostname,
+                # "host_config": self.docker_client.create_host_config( #fixme
+                #     binds=_binds,
+                #     links=links,
+                #     port_bindings=ports,
+                #     volumes_from=volumes_from,
+                #     dns=dns,
+                #     dns_search=dns_search,
+                #     extra_hosts=extra_hosts,
+                #     security_opt=security_opt,
+                #     cap_add=cap_add,
+                #     privileged=privileged,
+                # ),
+                # #######################################
+                # binds
+                "link": links,
+                "expose": ports,
+                "volumes_from": volumes_from,
+                "dns": dns,
+                "dns_search": dns_search,
+                # extra_hosts
+                "security_options": security_opt,
+                "cap_add": cap_add,
+                "privileged": privileged,
+            }
+
+            # Remove None values
+            kwargs = {key: value for key, value in kwargs.items() if value is not None}
+
+            # TODO update kwargs
+            self.container = python_on_whales.docker.container.create(
+                self.image_name, **kwargs
+            )
+
+        container_id = None
+        if self.use_docker_py:
+            container_id = self.container["Id"]
             self.docker_client.start(self.container["Id"])
         else:
-            python_on_whales.docker.start(self.container["Id"])
+            container_id = self.container.id
+            python_on_whales.docker.start(self.container.id)
 
         # run any supplied provisioners
         if provisioners:
@@ -256,7 +322,7 @@ class DockerRunner:
                     self.cleanup()
                     raise ex
 
-        return self.container["Id"]
+        return container_id
 
     def stop(self):
         """
@@ -654,9 +720,12 @@ class DockerRunner:
         """
         status = None
         try:
-            status = self.docker_client.inspect_container(
-                self.container["Id"],
-            )
+            if self.use_docker_py:
+                status = self.docker_client.inspect_container(
+                    self.container["Id"],
+                )
+            else:
+                status = python_on_whales.docker.container.inspect(self.container["Id"])
         except docker.errors.APIError:
             pass
         return status
@@ -668,10 +737,17 @@ class DockerRunner:
         ipaddr = None
         try:
             if self.is_running():
-                inspection = self.docker_client.inspect_container(
-                    self.container["Id"],
-                )
-                ipaddr = inspection.get("NetworkSettings", {}).get("IPAddress", None)
+                if self.use_docker_py:
+                    inspection = self.docker_client.inspect_container(
+                        self.container["Id"],
+                    )
+                    ipaddr = inspection.get("NetworkSettings", {}).get(
+                        "IPAddress", None
+                    )
+                else:
+                    ipaddr = python_on_whales.docker.container.inspect(
+                        self.container["Id"]
+                    ).network_settings.ip_address
         except docker.errors.APIError:
             pass
         return ipaddr
@@ -684,9 +760,12 @@ class DockerRunner:
         status = self._get_status()
         if not status:
             return False
-        if "State" not in status or "Running" not in status["State"]:
+        if isinstance(status, python_on_whales.Container):
+            return status.state and status.state.status == "running"
+        elif "State" not in status or "Running" not in status["State"]:
             return False
-        return status["State"]["Running"]
+        else:
+            return status["State"]["Running"]
 
     @property
     def exit_code(self):
@@ -697,7 +776,9 @@ class DockerRunner:
         status = self._get_status()
         if not status:
             return None
-        if "State" not in status or "ExitCode" not in status["State"]:
+        if isinstance(status, python_on_whales.Container):
+            return status.state.exit_code
+        elif "State" not in status or "ExitCode" not in status["State"]:
             return None
         return status["State"]["ExitCode"]
 
@@ -736,8 +817,13 @@ class DockerRunner:
         stream.write(
             f"Committing build container {self.container['Id']:.10} as an image...\n"
         )
-        self.committed_image = self.docker_client.commit(
-            self.container["Id"],
-        )["Id"]
+        if self.use_docker_py:
+            self.committed_image = self.docker_client.commit(
+                self.container["Id"],
+            )["Id"]
+        else:
+            self.committed_image = python_on_whales.docker.commit(
+                self.container["Id"]
+            ).id
         stream.write(f"Resulting build container image: {self.committed_image:.10}\n")
         return self.committed_image
