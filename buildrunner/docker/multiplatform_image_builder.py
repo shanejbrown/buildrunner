@@ -271,7 +271,7 @@ class MultiplatformImageBuilder:  # pylint: disable=too-many-instance-attributes
 
     @staticmethod
     def _get_image_digest(image_ref: str) -> str:
-        return docker.buildx.imagetools.inspect(image_ref).config.digest
+        return docker.image.inspect(image_ref).id
 
     # pylint: disable=too-many-arguments
     @retry(

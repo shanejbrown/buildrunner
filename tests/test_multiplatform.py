@@ -369,13 +369,11 @@ def test_push_with_dest_names():
 )
 @patch("buildrunner.docker.multiplatform_image_builder.docker.image.remove")
 @patch("buildrunner.docker.multiplatform_image_builder.docker.push")
-@patch(
-    "buildrunner.docker.multiplatform_image_builder.docker.buildx.imagetools.inspect"
-)
+@patch("buildrunner.docker.multiplatform_image_builder.docker.image.inspect")
 @patch("buildrunner.docker.multiplatform_image_builder.docker.buildx.build")
 def test_build(
     mock_build,
-    mock_imagetools_inspect,
+    mock_inspect,
     mock_push,
     mock_remove,
     name,
@@ -385,8 +383,8 @@ def test_build(
     _ = mock_build
     _ = mock_push
     _ = mock_remove
-    mock_imagetools_inspect.return_value = MagicMock()
-    mock_imagetools_inspect.return_value.config.digest = "myfakeimageid"
+    mock_inspect.return_value = MagicMock()
+    mock_inspect.return_value.id = "myfakeimageid"
     test_path = f"{TEST_DIR}/test-files/multiplatform"
     with MultiplatformImageBuilder() as mpib:
         built_image = mpib.build_multiple_images(
@@ -408,16 +406,12 @@ def test_build(
 @pytest.mark.serial
 @patch("buildrunner.docker.multiplatform_image_builder.docker.image.remove")
 @patch("buildrunner.docker.multiplatform_image_builder.docker.push")
-@patch(
-    "buildrunner.docker.multiplatform_image_builder.docker.buildx.imagetools.inspect"
-)
+@patch("buildrunner.docker.multiplatform_image_builder.docker.image.inspect")
 @patch("buildrunner.docker.multiplatform_image_builder.docker.buildx.build")
-def test_build_multiple_builds(
-    mock_build, mock_imagetools_inspect, mock_push, mock_remove
-):
+def test_build_multiple_builds(mock_build, mock_inspect, mock_push, mock_remove):
     _ = mock_remove
-    mock_imagetools_inspect.return_value = MagicMock()
-    mock_imagetools_inspect.return_value.config.digest = "myfakeimageid"
+    mock_inspect.return_value = MagicMock()
+    mock_inspect.return_value.id = "myfakeimageid"
     platforms1 = ["linux/amd64", "linux/arm64"]
     expected_image_tags1 = [
         "uuid1-linux-amd64",
@@ -539,8 +533,8 @@ def test_build_multiple_builds(
         call([f"{image_name}:uuid2-linux-amd64"]),
         call([f"{image_name}:uuid2-linux-arm64"]),
     ]
-    assert mock_imagetools_inspect.call_count == 4
-    assert mock_imagetools_inspect.call_args_list == [
+    assert mock_inspect.call_count == 4
+    assert mock_inspect.call_args_list == [
         call(f"{image_name}:uuid1-linux-amd64"),
         call(f"{image_name}:uuid1-linux-arm64"),
         call(f"{image_name}:uuid2-linux-amd64"),
