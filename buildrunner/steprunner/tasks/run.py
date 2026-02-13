@@ -1160,7 +1160,10 @@ class RunBuildStepRunnerTask(BuildStepRunnerTask):
 
         post_build.pull = False
         build_image_task = BuildBuildStepRunnerTask(
-            self.step_runner, post_build, image_to_prepend_to_dockerfile=temp_tag
+            self.step_runner,
+            post_build,
+            image_to_prepend_to_dockerfile=temp_tag,
+            force_legacy_builder=True,
         )
         _build_context = {}
         build_image_task.run(_build_context)
