@@ -37,6 +37,7 @@ class BuildBuildStepRunnerTask(BuildStepRunnerTask):  # pylint: disable=too-many
         step_runner,
         step: StepBuild,
         image_to_prepend_to_dockerfile=None,
+        force_legacy_builder=False,
     ):  # pylint: disable=too-many-statements,too-many-branches,too-many-locals
         super().__init__(step_runner, step)
         self._docker_client = buildrunner.docker.new_client(
@@ -44,6 +45,7 @@ class BuildBuildStepRunnerTask(BuildStepRunnerTask):  # pylint: disable=too-many
         )
         self.to_inject = {}
         self.image_to_prepend_to_dockerfile = image_to_prepend_to_dockerfile
+        self.force_legacy_builder = force_legacy_builder
 
         self._import = step.import_param
         self.path = step.path
@@ -211,7 +213,9 @@ class BuildBuildStepRunnerTask(BuildStepRunnerTask):  # pylint: disable=too-many
         self.step_runner.log.write("Running docker build\n")
 
         try:
-            if self.platforms or not buildrunner_config.run_config.use_legacy_builder:
+            if (
+                self.platforms or not buildrunner_config.run_config.use_legacy_builder
+            ) and not self.force_legacy_builder:
                 if self.platforms and buildrunner_config.run_config.use_legacy_builder:
                     LOGGER.warning(
                         f"Ignoring use-legacy-builder. Using the legacy builder for multiplatform images {self.platforms} is not supported. "
@@ -262,7 +266,7 @@ class BuildBuildStepRunnerTask(BuildStepRunnerTask):  # pylint: disable=too-many
                 )
                 context["mp_built_image"] = built_images
                 if num_built_platforms > 0:
-                    context["image"] = built_images.native_platform_image.trunc_digest
+                    context["image"] = built_images.native_platform_image.image_ref
 
             else:
                 # Use the legacy builder

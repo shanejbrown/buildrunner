@@ -20,7 +20,8 @@ serial_test_files = [
     "test-general-buildx.yaml",
     "test-general.yaml",
     "test-push-artifact-buildx.yaml",
-    "test-multiplatform-image-tags.yaml",
+    "test-systemd.yaml",
+    "test-ssh-buildx.yaml",
 ]
 
 
