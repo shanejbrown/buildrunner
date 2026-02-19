@@ -57,16 +57,22 @@ jobs:
         check_name: "Test Results ${{ matrix.python-version }}"
         github_retries: 10
         secondary_rate_limit_wait_seconds: 60.0
+  # Version source of truth: pyproject.toml [project] version.
+  # - Patch: CI bumps patch on every push to main (and commits it).
+  # - Minor/major: Update version in pyproject.toml (e.g. uv version 3.22.0 or uv version --bump minor),
+  #   merge with message "Release 3.22.0"; CI will use that version as-is and tag it.
   get-version:
     if: github.repository == 'adobe/buildrunner'
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: write
     outputs:
       current-version: ${{ steps.version-number.outputs.CURRENT_VERSION }}
+      should-tag: ${{ steps.tag-decision.outputs.should_tag }}
     steps:
       - uses: actions/checkout@v2
         with:
-          # Fetch all history instead of the latest commit
           fetch-depth: 0
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -74,31 +80,48 @@ jobs:
           python-version: 3.9
       - name: Install dependencies
         run: uv sync --locked
+      - name: Bump version (patch only when not the bot’s bump commit)
+        id: bump
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'Bump version to')
+        run: uv version --bump patch
       - name: Get current version
         id: version-number
-        run: echo "CURRENT_VERSION=$(uv version --short).$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
+        run: echo "CURRENT_VERSION=$(uv version --short)" >> $GITHUB_OUTPUT
       - name: Print current version
         run: echo CURRENT_VERSION ${{ steps.version-number.outputs.CURRENT_VERSION }}
+      - name: Set tag/publish decision
+        id: tag-decision
+        run: |
+          if [ "${{ steps.bump.outcome }}" = "success" ]; then echo "should_tag=true" >> $GITHUB_OUTPUT; exit 0; fi
+          echo "should_tag=false" >> $GITHUB_OUTPUT
+      - name: Print tag decision
+        run: echo "should_tag=${{ steps.tag-decision.outputs.should_tag }}"
+      - name: Commit and push version bump
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, 'Bump version to')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml uv.lock
+          git diff --staged --quiet || (git commit -m "Bump version to ${{ steps.version-number.outputs.CURRENT_VERSION }}" && git push)
   tag-commit:
-    if: github.repository == 'adobe/buildrunner' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.repository == 'adobe/buildrunner' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.get-version.outputs.should-tag == 'true'
     runs-on: ubuntu-latest
     needs: [test, get-version]
     steps:
       - uses: actions/checkout@v2
         with:
-          # Fetch all history instead of the latest commit
           fetch-depth: 0
+          ref: main
       - name: Tag commit
         run: git tag ${{ needs.get-version.outputs.current-version }} && git push --tags
   publish-pypi:
-    if: github.repository == 'adobe/buildrunner'
+    if: github.repository == 'adobe/buildrunner' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.get-version.outputs.should-tag == 'true'))
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, get-version]
     steps:
     - uses: actions/checkout@v2
       with:
-        # Fetch all history instead of the latest commit
-        fetch-depth: 0
+        ref: ${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
     - name: Install uv
       uses: astral-sh/setup-uv@v6
       with:
@@ -106,7 +129,7 @@ jobs:
     - name: Install dependencies
       run: uv sync --locked
     - name: Set version
-      run: uv version --no-sync "$(uv version --short).$(git rev-list --count HEAD)"
+      run: uv version --no-sync "${{ needs.get-version.outputs.current-version }}"
     - name: Build
       run: uv build
     - name: Check upload
@@ -119,14 +142,13 @@ jobs:
         user: __token__
         password: ${{ secrets.ADOBE_BOT_PYPI_TOKEN }}
   publish-docker:
-    if: github.repository == 'adobe/buildrunner'
+    if: github.repository == 'adobe/buildrunner' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.get-version.outputs.should-tag == 'true'))
     runs-on: ubuntu-latest
     needs: [test, get-version]
     steps:
     - uses: actions/checkout@v2
       with:
-        # Fetch all history instead of the latest commit
-        fetch-depth: 0
+        ref: ${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}
     - name: Docker Tags
       id: docker_tags
       uses: docker/metadata-action@v3
