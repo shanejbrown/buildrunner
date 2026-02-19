@@ -15,9 +15,9 @@ You are responsible for updating it for every release. CI tags and publishes wha
 | **Minor** (e.g. 3.22 → 3.23.0) | Run `uv version 3.23.0` or `uv version --bump minor`. Commit, open a PR to `main`, merge. CI will tag and publish. |
 | **Major** (e.g. 3.x → 4.0.0) | Set `version = "4.0.0"` in `pyproject.toml` (or `uv version 4.0.0`). Commit, open a PR to `main`, merge. CI will tag and publish. |
 
-## PR check: version must change
+## PR check: version must increase
 
-For every **pull request targeting `main`**, CI runs a check that the version in `pyproject.toml` is **different** from the version on `main`. If it is the same, the check fails and reminds you to bump the version (e.g. `uv version --bump patch`) before merging. That way you don’t merge without a version bump.
+For every **pull request targeting `main`**, CI runs a check that the version in `pyproject.toml` is **strictly greater** than the version on `main`: at least one of major.minor.patch must increase, and none may decrease (except MINOR/PATCH may reset when MAJOR increases, or PATCH when MINOR increases). MAJOR may never decrease; MINOR may not decrease unless MAJOR increased; PATCH may not decrease unless MAJOR or MINOR changed. If the version is unchanged or violates these rules, the check fails.
 
 ## Summary
 

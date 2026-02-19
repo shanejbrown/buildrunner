@@ -82,7 +82,8 @@ jobs:
         run: echo "CURRENT_VERSION=$(uv version --short)" >> $GITHUB_OUTPUT
       - name: Print current version
         run: echo CURRENT_VERSION ${{ steps.version-number.outputs.CURRENT_VERSION }}
-  # PR check: version in pyproject.toml must differ from main (reminds you to bump before release).
+  # PR check: version must differ from main and be strictly greater (semver: major.minor.patch).
+  # MAJOR may not decrease; MINOR may not decrease unless MAJOR increased; PATCH may not decrease unless MAJOR or MINOR changed.
   version-changed:
     if: github.repository == 'adobe/buildrunner' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -94,7 +95,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           python-version: 3.9
-      - name: Check version changed from main
+      - name: Check version increased from main
         run: |
           PR_VERSION=$(uv version --short)
           git fetch origin main
@@ -103,11 +104,45 @@ jobs:
             echo "Could not read version from main's pyproject.toml"
             exit 1
           fi
-          if [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
-            echo "::error::Version in pyproject.toml must be updated before merging. main has $MAIN_VERSION; your branch also has $PR_VERSION. Bump the version (e.g. \`uv version --bump patch\`) and push."
+          # Parse major.minor.patch (default missing to 0; e.g. "3" -> 3.0.0, "3.22" -> 3.22.0)
+          main_major=$(echo "$MAIN_VERSION" | cut -d. -f1)
+          main_minor=$(echo "$MAIN_VERSION" | cut -d. -f2)
+          main_patch=$(echo "$MAIN_VERSION" | cut -d. -f3)
+          [ -z "$main_minor" ] && main_minor=0
+          [ -z "$main_patch" ] && main_patch=0
+          pr_major=$(echo "$PR_VERSION" | cut -d. -f1)
+          pr_minor=$(echo "$PR_VERSION" | cut -d. -f2)
+          pr_patch=$(echo "$PR_VERSION" | cut -d. -f3)
+          [ -z "$pr_minor" ] && pr_minor=0
+          [ -z "$pr_patch" ] && pr_patch=0
+          # Require PR version strictly greater than main (at least one component increased, none decreased per semver rules)
+          fail_msg="Version must be strictly greater than main ($MAIN_VERSION). Rules: MAJOR may not decrease; MINOR may not decrease unless MAJOR increased; PATCH may not decrease unless MAJOR or MINOR changed. Bump with e.g. \`uv version --bump patch\`."
+          if [ "$pr_major" -lt "$main_major" ]; then
+            echo "::error::MAJOR decreased ($main_major → $pr_major). $fail_msg"
             exit 1
           fi
-          echo "Version OK: $MAIN_VERSION → $PR_VERSION"
+          if [ "$pr_major" -gt "$main_major" ]; then
+            echo "Version OK: $MAIN_VERSION → $PR_VERSION"
+            exit 0
+          fi
+          if [ "$pr_minor" -lt "$main_minor" ]; then
+            echo "::error::MINOR decreased ($main_minor → $pr_minor) without MAJOR increase. $fail_msg"
+            exit 1
+          fi
+          if [ "$pr_minor" -gt "$main_minor" ]; then
+            echo "Version OK: $MAIN_VERSION → $PR_VERSION"
+            exit 0
+          fi
+          if [ "$pr_patch" -lt "$main_patch" ]; then
+            echo "::error::PATCH decreased ($main_patch → $pr_patch) without MAJOR or MINOR change. $fail_msg"
+            exit 1
+          fi
+          if [ "$pr_patch" -gt "$main_patch" ]; then
+            echo "Version OK: $MAIN_VERSION → $PR_VERSION"
+            exit 0
+          fi
+          echo "::error::Version unchanged ($MAIN_VERSION). $fail_msg"
+          exit 1
   tag-commit:
     if: github.repository == 'adobe/buildrunner' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
