@@ -24,3 +24,4 @@ For every **pull request targeting `main`**, CI runs a check that the version in
 - **You** update the version in **`pyproject.toml`** for every release (patch, minor, or major).
 - Open a PR to `main`; CI will fail the “version changed” check until the version is updated.
 - After you merge to `main`, CI tags that version and publishes to PyPI and the container registry.
+
